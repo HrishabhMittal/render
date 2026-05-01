@@ -9,75 +9,83 @@ framebuffer_size_callback :: proc "c" (window: glfw.WindowHandle, width: i32, he
 	gl.Viewport(0, 0, width, height)
 }
 
-processInput :: proc "c" (window: glfw.WindowHandle) {
+processInput :: proc(window: glfw.WindowHandle, state: ^AppState) {
 	if glfw.GetKey(window, glfw.KEY_ESCAPE) == glfw.PRESS {
 		glfw.SetWindowShouldClose(window, true)
 	}
 
-	cameraSpeed := f32(deltaTime * 2.5)
+	cameraSpeed := f32(state.deltaTime * 2.5)
+
 	if glfw.GetKey(window, glfw.KEY_W) == glfw.PRESS {
-		cameraPos += cameraSpeed * cameraFront
+		state.camera.position += cameraSpeed * state.camera.front
 	}
 	if glfw.GetKey(window, glfw.KEY_S) == glfw.PRESS {
-		cameraPos -= cameraSpeed * cameraFront
+		state.camera.position -= cameraSpeed * state.camera.front
 	}
 	if glfw.GetKey(window, glfw.KEY_A) == glfw.PRESS {
-		cameraPos -= glsl.normalize(glsl.cross(cameraFront, cameraUp)) * cameraSpeed
+		state.camera.position -=
+			glsl.normalize(glsl.cross(state.camera.front, state.camera.up)) * cameraSpeed
 	}
 	if glfw.GetKey(window, glfw.KEY_D) == glfw.PRESS {
-		cameraPos += glsl.normalize(glsl.cross(cameraFront, cameraUp)) * cameraSpeed
+		state.camera.position +=
+			glsl.normalize(glsl.cross(state.camera.front, state.camera.up)) * cameraSpeed
 	}
 	if glfw.GetKey(window, glfw.KEY_SPACE) == glfw.PRESS {
-		cameraPos += cameraUp * cameraSpeed
+		state.camera.position += state.camera.up * cameraSpeed
 	}
 	if glfw.GetKey(window, glfw.KEY_LEFT_SHIFT) == glfw.PRESS {
-		cameraPos -= cameraUp * cameraSpeed
+		state.camera.position -= state.camera.up * cameraSpeed
 	}
 }
 
 mouse_callback :: proc "c" (window: glfw.WindowHandle, xposIn: f64, yposIn: f64) {
+	state := cast(^AppState)glfw.GetWindowUserPointer(window)
+	if state == nil do return
+
 	xpos := f32(xposIn)
 	ypos := f32(yposIn)
 
-	if firstMouse {
-		lastX = xpos
-		lastY = ypos
-		firstMouse = false
+	if state.firstMouse {
+		state.lastX = xpos
+		state.lastY = ypos
+		state.firstMouse = false
 	}
 
-	xoffset := xpos - lastX
-	yoffset := lastY - ypos
-	lastX = xpos
-	lastY = ypos
+	xoffset := xpos - state.lastX
+	yoffset := state.lastY - ypos
+	state.lastX = xpos
+	state.lastY = ypos
 
 	sensitivity: f32 = 0.1
 	xoffset *= sensitivity
 	yoffset *= sensitivity
 
-	yaw += xoffset
-	pitch += yoffset
+	state.camera.yaw += xoffset
+	state.camera.pitch += yoffset
 
-	if pitch > 89 {
-		pitch = 89
+	if state.camera.pitch > 89.0 {
+		state.camera.pitch = 89.0
 	}
-	if pitch < -89 {
-		pitch = -89
+	if state.camera.pitch < -89.0 {
+		state.camera.pitch = -89.0
 	}
 
-	front := glsl.vec3 {
-		math.cos(glsl.radians(yaw)) * math.cos(glsl.radians(pitch)),
-		math.sin(glsl.radians(pitch)),
-		math.sin(glsl.radians(yaw)) * glsl.cos(glsl.radians(pitch)),
-	}
-	cameraFront = glsl.normalize(front)
+	front: glsl.vec3
+	front.x = math.cos(glsl.radians(state.camera.yaw)) * math.cos(glsl.radians(state.camera.pitch))
+	front.y = math.sin(glsl.radians(state.camera.pitch))
+	front.z = math.sin(glsl.radians(state.camera.yaw)) * math.cos(glsl.radians(state.camera.pitch))
+	state.camera.front = glsl.normalize(front)
 }
 
-scroll_callback := proc "c" (window: glfw.WindowHandle, xoffset: f64, yoffset: f64) {
-	fov -= f32(yoffset)
-	if fov < 1 {
-		fov = 1
+scroll_callback :: proc "c" (window: glfw.WindowHandle, xoffset: f64, yoffset: f64) {
+	state := cast(^AppState)glfw.GetWindowUserPointer(window)
+	if state == nil do return
+
+	state.camera.fov -= f32(yoffset)
+	if state.camera.fov < 1.0 {
+		state.camera.fov = 1.0
 	}
-	if fov > 45 {
-		fov = 45
+	if state.camera.fov > 45.0 {
+		state.camera.fov = 45.0
 	}
 }
